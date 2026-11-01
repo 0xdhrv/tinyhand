@@ -104,13 +104,10 @@ h1 { margin: 0; font-weight: 600; font-size: clamp(36px, 5.6vw, 56px); line-heig
 .btn.ghost { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; height: 46px; padding: 0 20px; border-radius: 12px; font-weight: 500; font-size: 15px; transition: transform .15s ease; color: var(--fg); background: var(--ghost); }
 .btn.ghost:hover { transform: translateY(-1px); }
 .btn.ghost svg { width: 13px; height: 13px; }
-.player { position: relative; z-index: 3; margin: auto; width: min(960px, calc(100% - 40px)); }
-.player[hidden], .intro[hidden] { display: none; }
-.frame { aspect-ratio: 16 / 9; border-radius: 20px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px var(--line), 0 30px 60px -24px rgba(0, 0, 0, .7); }
+.player { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(10, 4, 8, .82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); cursor: pointer; }
+.player[hidden] { display: none; }
+.frame { width: min(1280px, 100%, (100vh - 40px) * 16 / 9); aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px var(--line), 0 40px 80px -30px rgba(0, 0, 0, .8); cursor: auto; }
 .frame iframe { display: block; width: 100%; height: 100%; border: 0; }
-.close { all: unset; cursor: pointer; position: absolute; top: -48px; right: 0; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--glass); box-shadow: inset 0 0 0 1px var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.close:hover { background: var(--ghost); }
-.close svg { width: 16px; height: 16px; fill: none; stroke: var(--fg); stroke-width: 2; stroke-linecap: round; }
 .ver { margin: -2px 0 0; font: 400 11.5px var(--mono); color: var(--muted); }
 
 .picker { position: absolute; z-index: 4; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 15px; background: rgba(25, 8, 20, .72); border: .5px solid rgba(255, 240, 225, .12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 24px -10px rgba(58, 36, 23, .35); }
@@ -176,10 +173,6 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
       </div>
       <p class="ver">Version <span id="version">1.0.2</span> · macOS 13 or later · Apple silicon and Intel</p>
     </div>
-    <div class="player" id="player" data-pass hidden>
-      <div class="frame" id="frame"></div>
-      <button class="close" id="close" type="button" aria-label="Close video" title="Close · Esc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    </div>
     <span class="rest" data-target="point" aria-hidden="true"></span>
     <div class="picker" id="picker" data-pass aria-label="Pick a hand"></div>
   </section>
@@ -194,6 +187,8 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
     <div class="foot"><span>Made by <a href="https://x.com/nilbuild" target="_blank" rel="noopener">@nilbuild</a></span><a href="https://github.com/nilbuild/tinyhand" target="_blank" rel="noopener">Source on GitHub</a><a href="https://github.com/nilbuild/tinyhand/blob/main/LICENSE" target="_blank" rel="noopener">MIT license</a><span>macOS 13 or later</span></div>
   </section>
 </main>
+
+<div class="player" id="player" data-pass hidden><div class="frame" id="frame"></div></div>
 
 <script src="pointer.js"></script>
 <script>
@@ -226,12 +221,11 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
   }
 
   const VIDEO_ID = '5Z7rl13t7V4';
-  const intro = stage.querySelector('.intro');
   const player = document.getElementById('player');
   const frame = document.getElementById('frame');
   function setPlaying(on) {
-    intro.hidden = on;
     player.hidden = !on;
+    document.body.style.overflow = on ? 'hidden' : '';
     if (!on) {
       frame.innerHTML = '';
       return;
@@ -243,8 +237,10 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
     e.stopPropagation();
     setPlaying(true);
   });
-  document.getElementById('close').addEventListener('click', e => {
-    e.stopPropagation();
+  player.addEventListener('click', e => {
+    if (e.target !== player) {
+      return;
+    }
     setPlaying(false);
   });
   const styles = api.hands.concat([{ id: 'laser', name: 'Laser dot' }]);
