@@ -6,20 +6,24 @@ import Foundation
 enum CursorHider {
     private static var hidden = false
 
-    static func enableBackgroundHiding() {
-        typealias MainConn = @convention(c) () -> Int32
-        typealias SetProp = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+    private typealias MainConn = @convention(c) () -> Int32
+    private typealias SetProp = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
 
+    private static let backgroundHidingSymbols: (MainConn, SetProp)? = {
         guard let handle = dlopen(nil, RTLD_NOW) else {
-            return
+            return nil
         }
         guard let mainConnSym = dlsym(handle, "CGSMainConnectionID"),
               let setPropSym = dlsym(handle, "CGSSetConnectionProperty") else {
+            return nil
+        }
+        return (unsafeBitCast(mainConnSym, to: MainConn.self), unsafeBitCast(setPropSym, to: SetProp.self))
+    }()
+
+    static func enableBackgroundHiding() {
+        guard let (mainConn, setProp) = backgroundHidingSymbols else {
             return
         }
-
-        let mainConn = unsafeBitCast(mainConnSym, to: MainConn.self)
-        let setProp = unsafeBitCast(setPropSym, to: SetProp.self)
         let cid = mainConn()
         _ = setProp(cid, cid, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
     }
@@ -43,6 +47,10 @@ enum CursorHider {
             CGDisplayShowCursor(CGMainDisplayID())
         }
         hideCount = 0
+    }
+
+    static var isSettling: Bool {
+        hidden && Date().timeIntervalSince(hiddenAt) < 1
     }
 
     private static var hideCount = 0

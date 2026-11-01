@@ -25,6 +25,19 @@ final class ArmView: NSView {
     private var pressAmount: CGFloat = 0
     private var gripX: CGFloat?
     private var lastPose: [CGFloat] = []
+    private var lastLaserPose: [CGFloat] = []
+    private var gripTarget: CGFloat?
+    private var displayImageHeight = 0
+
+    var isSettling: Bool {
+        if pressAmount > 0.002 {
+            return true
+        }
+        guard let gx = gripX, let target = gripTarget else {
+            return false
+        }
+        return abs(target - gx) > 0.5
+    }
 
     var pointerHidden = false {
         didSet {
@@ -87,8 +100,8 @@ final class ArmView: NSView {
         CATransaction.setDisableActions(true)
         if let a = asset, style != .laser {
             group.anchorPoint = CGPoint(x: a.rodX, y: 0)
-            rodLayer.contents = a.image
-            handLayer.contents = a.image
+            displayImageHeight = 0
+            updateDisplayImage(a)
             rodLayer.contentsRect = CGRect(x: 0, y: 1 - a.rodEnd, width: 1, height: a.rodEnd - a.wrist)
             handLayer.contentsRect = CGRect(x: 0, y: 1 - a.wrist, width: 1, height: a.wrist - a.handTop)
         }
@@ -110,6 +123,7 @@ final class ArmView: NSView {
         let targetX = min(max(cursor.x + gripLeanFrac * bounds.width, bounds.width * 0.15), bounds.width * 1.05)
         let gx = gripX.map { $0 + (targetX - $0) * gripFollow } ?? targetX
         gripX = gx
+        gripTarget = targetX
         let grip = CGPoint(x: gx, y: -gripDepthFrac * screenH)
 
         if !held {
@@ -123,6 +137,7 @@ final class ArmView: NSView {
         guard let a = asset else {
             return
         }
+        updateDisplayImage(a)
 
         let dx = cursor.x - grip.x
         let dy = cursor.y - grip.y
@@ -184,20 +199,56 @@ final class ArmView: NSView {
     private func aimLaser(cursor: CGPoint) {
         let press = pressAmount
         let r = max(4, bounds.height * 0.0038 * handLenFrac / 0.13) * (1 + 0.2 * press)
+        let laserPose = [r, cursor.x, cursor.y].map { ($0 * 100).rounded() }
+        guard laserPose != lastLaserPose else {
+            return
+        }
+        lastLaserPose = laserPose
         let core = r * 0.45
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        dotLayer.path = CGPath(ellipseIn: CGRect(x: -r, y: -r, width: 2 * r, height: 2 * r), transform: nil)
+        let dot = CGPath(ellipseIn: CGRect(x: -r, y: -r, width: 2 * r, height: 2 * r), transform: nil)
+        dotLayer.path = dot
+        dotLayer.shadowPath = dot
         dotCore.path = CGPath(ellipseIn: CGRect(x: -core, y: -core, width: 2 * core, height: 2 * core), transform: nil)
         dotLayer.position = cursor
         dotLayer.shadowRadius = r * (2.2 + 1.0 * press)
         CATransaction.commit()
     }
 
+    private func updateDisplayImage(_ a: HandAsset) {
+        let full = a.image
+        let scale = window?.backingScaleFactor ?? 2
+        let restPts = handLenFrac * bounds.height / (a.wrist - a.handTop)
+        let step = 64
+        let needed = (Int((restPts * scale).rounded(.up)) + step - 1) / step * step
+        let height = needed >= full.height * 9 / 10 ? full.height : max(step, needed)
+        guard height != displayImageHeight else {
+            return
+        }
+        displayImageHeight = height
+        let image = height == full.height ? full : HandAsset.resized(full, height: height) ?? full
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        rodLayer.contents = image
+        handLayer.contents = image
+        CATransaction.commit()
+    }
+
     override func layout() {
         super.layout()
+        applyBackingScale()
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        applyBackingScale()
+    }
+
+    private func applyBackingScale() {
         let scale = window?.backingScaleFactor ?? 2
         rodLayer.contentsScale = scale
         handLayer.contentsScale = scale
+        ink.scale = scale
     }
 }

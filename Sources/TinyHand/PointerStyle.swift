@@ -138,22 +138,35 @@ struct HandAsset {
     let handMaxX: CGFloat
 
     private static var cache: [String: HandAsset] = [:]
+    private static var recent: [String] = []
+    private static let cacheLimit = 2
 
     static func load(_ name: String) -> HandAsset? {
         if let hit = cache[name] {
+            touch(name)
             return hit
         }
         guard let image = loadImage(name), let asset = measure(image) else {
             return nil
         }
         cache[name] = asset
+        touch(name)
         return asset
+    }
+
+    private static func touch(_ name: String) {
+        recent.removeAll { $0 == name }
+        recent.append(name)
+        while recent.count > cacheLimit {
+            cache[recent.removeFirst()] = nil
+        }
     }
 
     private static var thumbnails: [String: NSImage] = [:]
 
     static func forget(_ name: String) {
         cache[name] = nil
+        recent.removeAll { $0 == name }
         thumbnails[name] = nil
     }
 
@@ -170,8 +183,10 @@ struct HandAsset {
         DispatchQueue.global(qos: .utility).async {
             var built: [(String, NSImage)] = []
             for name in missing {
-                if let thumb = loadImage(name).flatMap(measure)?.thumbnail {
-                    built.append((name, thumb))
+                autoreleasepool {
+                    if let thumb = loadImage(name).flatMap(measure)?.thumbnail {
+                        built.append((name, thumb))
+                    }
                 }
             }
             DispatchQueue.main.async {
@@ -218,6 +233,20 @@ struct HandAsset {
             return NSImage(cgImage: cropped, size: NSSize(width: 64, height: 64))
         }
         return NSImage(cgImage: small, size: NSSize(width: 64, height: 64))
+    }
+
+    static func resized(_ image: CGImage, height: Int) -> CGImage? {
+        let width = max(1, Int((CGFloat(image.width) * CGFloat(height) / CGFloat(image.height)).rounded()))
+        let space = image.colorSpace.flatMap { $0.model == .rgb ? $0 : nil }
+            ?? CGColorSpace(name: CGColorSpace.sRGB)
+            ?? CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return nil
+        }
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return ctx.makeImage()
     }
 
     private static func measure(_ image: CGImage) -> HandAsset? {

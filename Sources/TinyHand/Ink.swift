@@ -12,6 +12,7 @@ final class Ink {
                 blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
     var color = Ink.purple
+    var scale: CGFloat = 2
     private var fadeDelay: CFTimeInterval { max(0.5, Preferences.fadeSeconds) }
     private let fadeDuration: CFTimeInterval = 0.6
 
@@ -58,6 +59,7 @@ final class Ink {
         }
         stroke = nil
         points = []
+        freeze(s)
         if keep {
             return
         }
@@ -68,6 +70,21 @@ final class Ink {
         stroke = nil
         points = []
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+    }
+
+    private func freeze(_ s: CAShapeLayer) {
+        guard let path = s.path else {
+            return
+        }
+        let pad = s.lineWidth / 2 + s.shadowRadius * 3 + max(abs(s.shadowOffset.width), abs(s.shadowOffset.height)) + 2
+        let box = path.boundingBoxOfPath.insetBy(dx: -pad, dy: -pad).integral
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        s.bounds = box
+        s.position = CGPoint(x: box.midX, y: box.midY)
+        s.rasterizationScale = scale
+        s.shouldRasterize = true
+        CATransaction.commit()
     }
 
     private func fade(_ s: CAShapeLayer, after delay: CFTimeInterval, over duration: CFTimeInterval) {

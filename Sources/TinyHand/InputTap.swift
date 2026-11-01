@@ -129,8 +129,8 @@ final class InputTap {
             if type == .tapDisabledByTimeout {
                 Log.write("event tap was disabled by a timeout; re-enabled")
             }
-            if let tap = tap {
-                CGEvent.tapEnable(tap: tap, enable: active)
+            if active, let tap = tap {
+                CGEvent.tapEnable(tap: tap, enable: true)
             }
             return Unmanaged.passUnretained(event)
         }
