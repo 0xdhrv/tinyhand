@@ -3,6 +3,7 @@ import ApplicationServices
 import Carbon.HIToolbox
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    private var controlBridge: ControlBridge?
     private var statusItem: NSStatusItem!
     private let overlay = OverlayController()
     private let settings = SettingsWindow()
@@ -38,6 +39,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setupStatusItem()
         setupSettings()
         registerHotKeys()
+        let bridge = ControlBridge(overlay: overlay, openSettings: { [weak self] in
+            self?.openSettings()
+        }, openHandCreator: { [weak self] in
+            self?.overlay.exit()
+            self?.settings.showHandCreator()
+        })
+        do {
+            try bridge.start()
+            controlBridge = bridge
+        } catch {
+            Log.write("control bridge unavailable: \(error)")
+        }
 
         overlay.onNeedsPermission = { [weak self] in
             self?.welcome.show()
@@ -51,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        controlBridge?.stop()
         overlay.deactivate()
     }
 

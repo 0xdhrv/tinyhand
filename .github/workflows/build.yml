@@ -13,3 +13,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build (universal)
         run: swift build -c release --arch arm64 --arch x86_64
+      - name: Test local control bridge
+        run: bash scripts/test-control.sh

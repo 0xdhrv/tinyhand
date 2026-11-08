@@ -183,9 +183,18 @@ enum Preferences {
         NotificationCenter.default.post(name: changed, object: nil)
     }
 
-        private static func set(_ value: Any, _ key: String) {
+    private static var batchDepth = 0
+
+    static func performBatch(_ body: () -> Void) {
+        batchDepth += 1
+        body()
+        batchDepth -= 1
+        if batchDepth == 0 { NotificationCenter.default.post(name: changed, object: nil) }
+    }
+
+    private static func set(_ value: Any, _ key: String) {
         defaults.set(value, forKey: key)
-        NotificationCenter.default.post(name: changed, object: nil)
+        if batchDepth == 0 { NotificationCenter.default.post(name: changed, object: nil) }
     }
 
     private static func loadShortcut(_ key: String) -> Shortcut? {

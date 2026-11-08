@@ -1,6 +1,10 @@
 import AppKit
 import ApplicationServices
 
+if CommandLine.arguments.count > 1 && CommandLine.arguments[1] == "--ctl" {
+    exit(ControlTransport.runCLI(Array(CommandLine.arguments.dropFirst(2))))
+}
+
 if let idx = CommandLine.arguments.firstIndex(of: "--render-test") {
     let out = CommandLine.arguments.count > idx + 1 ? CommandLine.arguments[idx + 1] : "/tmp/armtest.png"
     RenderTest.run(outPath: out)

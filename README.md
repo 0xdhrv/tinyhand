@@ -33,6 +33,12 @@ Open `TinyHand.dmg`, drag TinyHand to Applications and allow **Accessibility** w
 While the pointer is on, a small toolbar at the bottom of the screen lets you pick one of
 36 hands or a laser dot, mute the tap sound, or exit.
 
+## Automation
+
+The bundled executable provides a local `--ctl` JSON interface for launchers and
+scripts. See [the control protocol](docs/control-protocol.md) for commands,
+permissions, compatibility checks, and error handling.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
